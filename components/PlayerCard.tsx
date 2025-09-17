@@ -18,7 +18,7 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
   const colors = getColors(isDark);
   const commonStyles = getCommonStyles(isDark);
   
-  const { paymentMethods, updatePlayerEligibility, updatePlayerPaymentMethod, updatePlayerAmount } = useTeamData();
+  const { paymentMethods, updatePlayerPayment, updatePlayerEligibility } = useTeamData();
   const [editingAmount, setEditingAmount] = useState(false);
   const [tempAmount, setTempAmount] = useState(player.amountPaid.toString());
 
@@ -68,7 +68,7 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
   };
 
   const handlePaymentMethodChange = (method: PaymentMethod) => {
-    updatePlayerPaymentMethod(player.id, method);
+    updatePlayerPayment(player.id, player.amountPaid, method);
     console.log('Player payment method updated:', player.name, method);
   };
 
@@ -78,7 +78,7 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
       Alert.alert('Error', 'Amount cannot be negative');
       return;
     }
-    updatePlayerAmount(player.id, amount);
+    updatePlayerPayment(player.id, amount, player.paymentMethod);
     setEditingAmount(false);
     console.log('Player amount updated:', player.name, amount);
   };
