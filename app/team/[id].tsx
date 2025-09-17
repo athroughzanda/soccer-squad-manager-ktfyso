@@ -3,19 +3,25 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { commonStyles, colors, buttonStyles } from '../../styles/commonStyles';
+import { getCommonStyles, getColors, getButtonStyles } from '../../styles/commonStyles';
 import { useTeamData } from '../../hooks/useTeamData';
 import FinancialCard from '../../components/FinancialCard';
 import PlayerCard from '../../components/PlayerCard';
 import Icon from '../../components/Icon';
-import SimpleBottomSheet from '../../components/BottomSheet';
+import CenterModal from '../../components/CenterModal';
 import AddPlayerForm from '../../components/AddPlayerForm';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type ViewMode = 'detailed' | 'roster' | 'gameday';
 
 export default function TeamDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+  const commonStyles = getCommonStyles(isDark);
+  const buttonStyles = getButtonStyles(isDark);
+  
   const { teams, getTeamPlayers, getTeamFinancials, updateTeamDebt, addPlayer } = useTeamData();
   const [viewMode, setViewMode] = useState<ViewMode>('detailed');
   const [showPlayerDetails, setShowPlayerDetails] = useState(false);
@@ -50,6 +56,7 @@ export default function TeamDetailScreen() {
     }
     updateTeamDebt(team.id, amount);
     setEditingDebt(false);
+    console.log('Team debt updated to:', amount);
   };
 
   const handleAddPlayer = (player: any) => {
@@ -59,7 +66,10 @@ export default function TeamDetailScreen() {
     };
     addPlayer(playerWithTeam);
     setShowAddPlayer(false);
+    console.log('Player added to team:', team.name);
   };
+
+  const styles = getStyles(colors);
 
   const renderDetailedView = () => (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -341,7 +351,7 @@ export default function TeamDetailScreen() {
         {renderContent()}
       </View>
 
-      <SimpleBottomSheet
+      <CenterModal
         isVisible={showAddPlayer}
         onClose={() => setShowAddPlayer(false)}
       >
@@ -350,12 +360,12 @@ export default function TeamDetailScreen() {
           onCancel={() => setShowAddPlayer(false)}
           teamId={team.id}
         />
-      </SimpleBottomSheet>
+      </CenterModal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

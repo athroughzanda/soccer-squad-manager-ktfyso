@@ -2,17 +2,23 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
+import { getCommonStyles, getColors, getButtonStyles } from '../styles/commonStyles';
 import { useTeamData } from '../hooks/useTeamData';
 import FinancialCard from '../components/FinancialCard';
 import TeamCard from '../components/TeamCard';
-import SimpleBottomSheet from '../components/BottomSheet';
+import CenterModal from '../components/CenterModal';
 import AddPlayerForm from '../components/AddPlayerForm';
 import Icon from '../components/Icon';
 import { useRouter } from 'expo-router';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function AllTeamsView() {
   const router = useRouter();
+  const { theme, toggleTheme, isDark } = useTheme();
+  const colors = getColors(isDark);
+  const commonStyles = getCommonStyles(isDark);
+  const buttonStyles = getButtonStyles(isDark);
+  
   const { teams, players, addPlayer, getTeamPlayers, getTeamFinancials, getAllTeamsFinancials } = useTeamData();
   const [showAddPlayer, setShowAddPlayer] = useState(false);
 
@@ -25,7 +31,10 @@ export default function AllTeamsView() {
   const handleAddPlayer = (player: any) => {
     addPlayer(player);
     setShowAddPlayer(false);
+    console.log('Player added successfully');
   };
+
+  const styles = getStyles(colors);
 
   return (
     <SafeAreaView style={commonStyles.container}>
@@ -33,6 +42,16 @@ export default function AllTeamsView() {
         <View style={styles.header}>
           <Text style={commonStyles.title}>Soccer Teams</Text>
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.themeButton}
+              onPress={toggleTheme}
+            >
+              <Icon 
+                name={isDark ? "sunny" : "moon"} 
+                size={24} 
+                color={colors.text} 
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => router.push('/payment-methods')}
@@ -129,7 +148,7 @@ export default function AllTeamsView() {
         </ScrollView>
       </View>
 
-      <SimpleBottomSheet
+      <CenterModal
         isVisible={showAddPlayer}
         onClose={() => setShowAddPlayer(false)}
       >
@@ -137,12 +156,12 @@ export default function AllTeamsView() {
           onAddPlayer={handleAddPlayer}
           onCancel={() => setShowAddPlayer(false)}
         />
-      </SimpleBottomSheet>
+      </CenterModal>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -152,6 +171,14 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  themeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   settingsButton: {
     width: 44,

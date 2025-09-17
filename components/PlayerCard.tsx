@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
-import { commonStyles, colors } from '../styles/commonStyles';
+import { getCommonStyles, getColors } from '../styles/commonStyles';
 import { Player, PaymentMethod, EligibilityStatus } from '../types';
 import { useTeamData } from '../hooks/useTeamData';
+import { useTheme } from '../contexts/ThemeContext';
 import Icon from './Icon';
 
 interface PlayerCardProps {
@@ -13,9 +14,12 @@ interface PlayerCardProps {
 }
 
 export default function PlayerCard({ player, showDetails = false, allowEditing = false }: PlayerCardProps) {
-  const { paymentMethods, updatePlayerPayment, updatePlayerEligibility } = useTeamData();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingField, setEditingField] = useState<'payment' | 'eligibility' | 'amount' | null>(null);
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+  const commonStyles = getCommonStyles(isDark);
+  
+  const { paymentMethods, updatePlayerEligibility, updatePlayerPaymentMethod, updatePlayerAmount } = useTeamData();
+  const [editingAmount, setEditingAmount] = useState(false);
   const [tempAmount, setTempAmount] = useState(player.amountPaid.toString());
 
   const getEligibilityColor = (eligibility: string) => {
@@ -34,31 +38,38 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
+      day: 'numeric', 
+      year: 'numeric' 
     });
   };
 
   const calculateAge = (dateOfBirth: Date) => {
     const today = new Date();
-    const age = today.getFullYear() - dateOfBirth.getFullYear();
-    const monthDiff = today.getMonth() - dateOfBirth.getMonth();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
     
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dateOfBirth.getDate())) {
-      return age - 1;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
     }
+    
     return age;
   };
 
   const handleEligibilityToggle = () => {
-    const newEligibility: EligibilityStatus = player.eligibility === 'Eligible' ? 'Ineligible' : 'Eligible';
+    const eligibilityOptions: EligibilityStatus[] = ['Eligible', 'Ineligible', 'Suspended', 'Injured'];
+    const currentIndex = eligibilityOptions.indexOf(player.eligibility);
+    const nextIndex = (currentIndex + 1) % eligibilityOptions.length;
+    const newEligibility = eligibilityOptions[nextIndex];
+    
     updatePlayerEligibility(player.id, newEligibility);
+    console.log('Player eligibility updated:', player.name, newEligibility);
   };
 
   const handlePaymentMethodChange = (method: PaymentMethod) => {
-    updatePlayerPayment(player.id, player.amountPaid, method);
-    setEditingField(null);
+    updatePlayerPaymentMethod(player.id, method);
+    console.log('Player payment method updated:', player.name, method);
   };
 
   const handleAmountUpdate = () => {
@@ -67,15 +78,15 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
       Alert.alert('Error', 'Amount cannot be negative');
       return;
     }
-    updatePlayerPayment(player.id, amount, player.paymentMethod);
-    setEditingField(null);
+    updatePlayerAmount(player.id, amount);
+    setEditingAmount(false);
+    console.log('Player amount updated:', player.name, amount);
   };
 
-  const availablePaymentMethods = paymentMethods.map(pm => pm.name) as PaymentMethod[];
-  const eligibilityOptions: EligibilityStatus[] = ['Eligible', 'Ineligible', 'Suspended', 'Injured'];
+  const styles = getStyles(colors);
 
   return (
-    <View style={[commonStyles.card, styles.container]}>
+    <View style={commonStyles.card}>
       <View style={styles.header}>
         <View style={styles.playerInfo}>
           <Text style={styles.playerName}>{player.name}</Text>
@@ -85,67 +96,73 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
         </View>
         
         <View style={styles.badges}>
-          {allowEditing ? (
-            <TouchableOpacity
-              style={[styles.badge, { backgroundColor: getEligibilityColor(player.eligibility) }]}
-              onPress={handleEligibilityToggle}
-            >
-              <Text style={styles.badgeText}>{player.eligibility}</Text>
-              <Icon name="pencil" size={10} color={colors.background} style={styles.editIcon} />
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.badge, { backgroundColor: getEligibilityColor(player.eligibility) }]}>
-              <Text style={styles.badgeText}>{player.eligibility}</Text>
-            </View>
-          )}
+          <View style={[
+            styles.eligibilityBadge,
+            { backgroundColor: getEligibilityColor(player.eligibility) }
+          ]}>
+            <Text style={styles.badgeText}>{player.eligibility}</Text>
+          </View>
         </View>
       </View>
-      
+
       {showDetails && (
         <View style={styles.details}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Date of Birth:</Text>
             <Text style={styles.detailValue}>{formatDate(player.dateOfBirth)}</Text>
           </View>
-          
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Eligibility:</Text>
+            {allowEditing ? (
+              <TouchableOpacity
+                style={styles.editableField}
+                onPress={handleEligibilityToggle}
+              >
+                <Text style={[styles.detailValue, { color: getEligibilityColor(player.eligibility) }]}>
+                  {player.eligibility}
+                </Text>
+                <Icon name="chevron-down" size={14} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={[styles.detailValue, { color: getEligibilityColor(player.eligibility) }]}>
+                {player.eligibility}
+              </Text>
+            )}
+          </View>
+
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Payment Method:</Text>
-            {allowEditing && editingField === 'payment' ? (
-              <View style={styles.editContainer}>
-                {availablePaymentMethods.map((method) => (
+            {allowEditing ? (
+              <View style={styles.paymentMethodOptions}>
+                {paymentMethods.map((method) => (
                   <TouchableOpacity
-                    key={method}
+                    key={method.id}
                     style={[
-                      styles.optionButton,
-                      player.paymentMethod === method && styles.selectedOption
+                      styles.paymentOption,
+                      player.paymentMethod === method.name && styles.selectedPaymentOption
                     ]}
-                    onPress={() => handlePaymentMethodChange(method)}
+                    onPress={() => handlePaymentMethodChange(method.name as PaymentMethod)}
                   >
                     <Text style={[
-                      styles.optionText,
-                      player.paymentMethod === method && styles.selectedOptionText
+                      styles.paymentOptionText,
+                      player.paymentMethod === method.name && styles.selectedPaymentOptionText
                     ]}>
-                      {method}
+                      {method.name}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
             ) : (
-              <TouchableOpacity
-                style={styles.editableValue}
-                onPress={() => allowEditing && setEditingField('payment')}
-                disabled={!allowEditing}
-              >
-                <Text style={styles.detailValue}>{player.paymentMethod}</Text>
-                {allowEditing && <Icon name="pencil" size={12} color={colors.textSecondary} />}
-              </TouchableOpacity>
+              <Text style={styles.detailValue}>{player.paymentMethod}</Text>
             )}
           </View>
-          
+
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Amount Paid:</Text>
-            {allowEditing && editingField === 'amount' ? (
+            {allowEditing && editingAmount ? (
               <View style={styles.amountEditContainer}>
+                <Text style={styles.dollarSign}>$</Text>
                 <TextInput
                   style={styles.amountInput}
                   value={tempAmount}
@@ -158,42 +175,37 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
                   style={styles.saveButton}
                   onPress={handleAmountUpdate}
                 >
-                  <Icon name="checkmark" size={16} color={colors.background} />
+                  <Icon name="checkmark" size={14} color={colors.background} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => {
+                    setEditingAmount(false);
                     setTempAmount(player.amountPaid.toString());
-                    setEditingField(null);
                   }}
                 >
-                  <Icon name="close" size={16} color={colors.text} />
+                  <Icon name="close" size={14} color={colors.text} />
                 </TouchableOpacity>
               </View>
             ) : (
               <TouchableOpacity
-                style={styles.editableValue}
-                onPress={() => {
-                  if (allowEditing) {
-                    setTempAmount(player.amountPaid.toString());
-                    setEditingField('amount');
-                  }
-                }}
-                disabled={!allowEditing}
+                style={allowEditing ? styles.editableAmount : undefined}
+                onPress={allowEditing ? () => {
+                  setTempAmount(player.amountPaid.toString());
+                  setEditingAmount(true);
+                } : undefined}
               >
-                <Text style={[styles.detailValue, { color: getPaymentStatusColor(player.amountPaid) }]}>
+                <Text style={[
+                  styles.detailValue,
+                  { color: getPaymentStatusColor(player.amountPaid) }
+                ]}>
                   ${player.amountPaid}
                 </Text>
-                {allowEditing && <Icon name="pencil" size={12} color={colors.textSecondary} />}
+                {allowEditing && (
+                  <Icon name="pencil" size={12} color={colors.textSecondary} />
+                )}
               </TouchableOpacity>
             )}
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Available:</Text>
-            <Text style={[styles.detailValue, { color: player.isAvailable ? colors.success : colors.error }]}>
-              {player.isAvailable ? 'Yes' : 'No'}
-            </Text>
           </View>
         </View>
       )}
@@ -201,10 +213,7 @@ export default function PlayerCard({ player, showDetails = false, allowEditing =
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
-  },
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -222,26 +231,19 @@ const styles = StyleSheet.create({
   badges: {
     alignItems: 'flex-end',
   },
-  badge: {
+  eligibilityBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 4,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   badgeText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.background,
   },
-  editIcon: {
-    marginLeft: 2,
-  },
   details: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: 16,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -255,14 +257,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '500',
-    flex: 1,
   },
   detailValue: {
     fontSize: 14,
     color: colors.text,
     fontWeight: '600',
   },
-  editableValue: {
+  editableField: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -271,13 +272,23 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: colors.backgroundAlt,
   },
-  editContainer: {
+  editableAmount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: colors.backgroundAlt,
+  },
+  paymentMethodOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    maxWidth: 200,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
-  optionButton: {
+  paymentOption: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -285,22 +296,27 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.background,
   },
-  selectedOption: {
+  selectedPaymentOption: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
-  optionText: {
+  paymentOptionText: {
     fontSize: 12,
     fontWeight: '500',
     color: colors.text,
   },
-  selectedOptionText: {
+  selectedPaymentOptionText: {
     color: colors.background,
   },
   amountEditContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  dollarSign: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   amountInput: {
     borderWidth: 1,
@@ -315,17 +331,17 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: colors.success,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: colors.backgroundAlt,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },

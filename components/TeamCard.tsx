@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { commonStyles, colors } from '../styles/commonStyles';
 import { Team, FinancialSummary } from '../types';
+import { getCommonStyles, getColors } from '../styles/commonStyles';
+import { useTheme } from '../contexts/ThemeContext';
 import Icon from './Icon';
 
 interface TeamCardProps {
@@ -13,19 +14,22 @@ interface TeamCardProps {
 }
 
 export default function TeamCard({ team, financials, playerCount, onPress }: TeamCardProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+  const commonStyles = getCommonStyles(isDark);
+
   const getStatusColor = (balance: number) => {
-    if (balance >= 0) return colors.success;
-    return colors.error;
+    return balance >= 0 ? colors.success : colors.error;
   };
 
   const getStatusText = (balance: number) => {
-    if (balance > 0) return 'Surplus';
-    if (balance < 0) return 'Deficit';
-    return 'Balanced';
+    return balance >= 0 ? 'Surplus' : 'Deficit';
   };
 
+  const styles = getStyles(colors);
+
   return (
-    <TouchableOpacity style={[commonStyles.card, styles.container]} onPress={onPress}>
+    <TouchableOpacity style={commonStyles.card} onPress={onPress}>
       <View style={styles.header}>
         <View style={styles.teamInfo}>
           <Text style={styles.teamName}>{team.name}</Text>
@@ -35,43 +39,50 @@ export default function TeamCard({ team, financials, playerCount, onPress }: Tea
         </View>
         <Icon name="chevron-forward" size={20} color={colors.textSecondary} />
       </View>
-      
-      <View style={styles.financialRow}>
+
+      <View style={styles.financialSummary}>
         <View style={styles.financialItem}>
           <Text style={styles.financialLabel}>Collected</Text>
-          <Text style={[styles.financialAmount, { color: colors.success }]}>
+          <Text style={[styles.financialValue, { color: colors.success }]}>
             ${financials.totalCollected}
           </Text>
         </View>
         
         <View style={styles.financialItem}>
           <Text style={styles.financialLabel}>Owed</Text>
-          <Text style={[styles.financialAmount, { color: colors.error }]}>
+          <Text style={[styles.financialValue, { color: colors.error }]}>
             ${financials.totalOwed}
           </Text>
         </View>
         
-        <View style={styles.statusBadge}>
-          <View style={[styles.badge, { backgroundColor: getStatusColor(financials.balance) }]}>
-            <Text style={styles.badgeText}>
-              {getStatusText(financials.balance)}
-            </Text>
-          </View>
+        <View style={styles.financialItem}>
+          <Text style={styles.financialLabel}>Balance</Text>
+          <Text style={[styles.financialValue, { color: getStatusColor(financials.balance) }]}>
+            ${Math.abs(financials.balance)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.statusBar}>
+        <View style={[
+          styles.statusIndicator,
+          { backgroundColor: getStatusColor(financials.balance) }
+        ]}>
+          <Text style={styles.statusText}>
+            {getStatusText(financials.balance)}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 12,
-  },
+const getStyles = (colors: any) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   teamInfo: {
     flex: 1,
@@ -82,35 +93,37 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
-  financialRow: {
+  financialSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 16,
   },
   financialItem: {
+    flex: 1,
     alignItems: 'center',
   },
   financialLabel: {
     fontSize: 12,
     fontWeight: '500',
     color: colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  financialAmount: {
+  financialValue: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  statusBadge: {
-    alignItems: 'flex-end',
+  statusBar: {
+    alignItems: 'center',
   },
-  badge: {
-    paddingHorizontal: 8,
+  statusIndicator: {
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  badgeText: {
+  statusText: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.background,
+    textTransform: 'uppercase',
   },
 });

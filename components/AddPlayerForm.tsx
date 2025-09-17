@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { commonStyles, colors, buttonStyles } from '../styles/commonStyles';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { getCommonStyles, getColors, getButtonStyles } from '../styles/commonStyles';
 import { Player, PlayerPosition, PaymentMethod } from '../types';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Platform } from 'react-native';
 import { useTeamData } from '../hooks/useTeamData';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface AddPlayerFormProps {
   onAddPlayer: (player: Omit<Player, 'id'>) => void;
@@ -14,6 +15,11 @@ interface AddPlayerFormProps {
 }
 
 export default function AddPlayerForm({ onAddPlayer, onCancel, teamId }: AddPlayerFormProps) {
+  const { isDark } = useTheme();
+  const colors = getColors(isDark);
+  const commonStyles = getCommonStyles(isDark);
+  const buttonStyles = getButtonStyles(isDark);
+  
   const { paymentMethods } = useTeamData();
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState(new Date());
@@ -53,8 +59,10 @@ export default function AddPlayerForm({ onAddPlayer, onCancel, teamId }: AddPlay
     }
   };
 
+  const styles = getStyles(colors);
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={commonStyles.subtitle}>Add New Player</Text>
       
       <View style={styles.form}>
@@ -159,13 +167,14 @@ export default function AddPlayerForm({ onAddPlayer, onCancel, teamId }: AddPlay
           <Text style={[commonStyles.text, { color: colors.background }]}>Add Player</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors: any) => StyleSheet.create({
   container: {
     padding: 20,
+    maxHeight: 600,
   },
   form: {
     marginBottom: 24,
